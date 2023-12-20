@@ -1,0 +1,25 @@
+---
+- name: "SmartGuard License add"
+  hosts: Install
+  remote_user: sguser
+  vars_files: 
+   - /test/dbpass.yml
+  vars:
+     ansible_become: yes
+     ansible_become_method: sudo  
+     DBPATH: /usr/local/src/mariadb
+     DBID: sgdbadm 
+     Database: snet
+     Query: INSERT INTO snet_config_license (LICENSE_KEY, LICENSE_FILE_KEY, EXPIRED_DATE, UPDATE_USER_ID, UPDATE_DATE) VALUES ('YfMzjzzVK1FU5UNMAvvdk89Q3BxaCeASHn0CDsLGP6w=', NULL, '99991231', NULL, NOW());
+  tasks:
+#    - debug:
+#        msg: "{{dbpass}}"
+
+    - name: "SmartGuard License add"
+      shell: |
+         {{DBPATH}}/bin/mysql -u{{DBID}} -p'{{dbpass}}' {{Database}} -e "{{Query}}"
+      register: license_add_result
+
+    - name: "Debug SmartGuard License add"
+      debug:
+        var: license_add_result

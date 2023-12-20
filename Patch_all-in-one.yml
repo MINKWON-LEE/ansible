@@ -1,0 +1,79 @@
+---
+- name: SmartGuard Patch Start
+  hosts: Patch
+  remote_user: sguser
+  become: yes
+  become_method: sudo
+  vars:
+     VER: V3.1.2.0
+     UPDATE: 20231214
+     RUN_USER: sguser
+     WORKING_DIR: /home/sguser
+  tasks:
+    - name: "SmartGuard Patch File check"
+      stat:
+        path: "{{WORKING_DIR}}/SmartGuardPatch-{{VER}}.{{UPDATE}}.Common-dev.tar"
+      register: patch_file
+
+    - name: "Delete patch file"
+      file:
+        path: "{{WORKING_DIR}}/SmartGuardPatch-{{VER}}.{{UPDATE}}.Common-dev.tar" 
+        state: absent
+      when: patch_file.stat.exists 
+      register: patch_file_delete
+  
+    - name: "Debug Delete Patch File"
+      debug:
+        var: patch_file_delete
+  
+    - name: "SmartGuard Patch File Download"
+      get_url:
+        url: http://192.168.1.10:8081/repository/releases/com/igloosec/smartguard_v3/SmartGuardPatch/{{VER}}.{{UPDATE}}.Common-dev/SmartGuardPatch-{{VER}}.{{UPDATE}}.Common-dev.tar
+        dest: "{{WORKING_DIR}}/SmartGuardPatch-{{VER}}.{{UPDATE}}.Common-dev.tar"
+        mode: 0644
+      register: patch_file_download_result
+
+    - name: "Debug Patch file Download"
+      debug:
+        var: patch_file_download_result
+
+    - name: "Patch directory exists"
+      stat:
+        path: "{{WORKING_DIR}}/SmartGuardPatch-Common"
+      register: dir_result
+
+    - name: "Debug Patch directory exists"
+      debug:
+        var: dir_result
+
+    - name: "Delete patch directory"
+      file:
+        path: "{{WORKING_DIR}}/SmartGuardPatch-Common" 
+        state: absent
+      when: dir_result.stat.exists
+      register: delete_dir
+
+    - name: "Debug Delete patch directory"
+      debug:
+        msg: "{{delete_dir}}"
+          
+    - name: "Unarchive Patch File tar"
+      unarchive: 
+        src: "{{WORKING_DIR}}/SmartGuardPatch-{{VER}}.{{UPDATE}}.Common-dev.tar"
+        dest: "{{WORKING_DIR}}"
+        remote_src: yes
+      register: Extract_patch_file
+
+    - name: "Debug Unarchive Patch File tar"
+      debug:
+        var: Extract_patch_file
+      
+    - name: "Patch File run"
+      shell: |
+         cd SmartGuardPatch-Common
+         sh patch.sh
+      register: patch_result
+      
+    - name: "Debug Patch File run"
+      debug:
+        msg: "{{patch_result}}"
