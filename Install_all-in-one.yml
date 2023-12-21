@@ -5,7 +5,7 @@
   become: yes
   become_method: sudo
   vars_files: 
-   - /test/dbpass.yml
+   - ./dbpass.yml
   vars:
      VER: V3.1.2.0
      UPDATE: 20231214

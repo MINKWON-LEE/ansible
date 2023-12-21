@@ -3,7 +3,7 @@
   hosts: Install
   remote_user: sguser
   vars_files: 
-   - /test/dbpass.yml
+   - ./dbpass.yml
   vars:
      ansible_become: yes
      ansible_become_method: sudo  
