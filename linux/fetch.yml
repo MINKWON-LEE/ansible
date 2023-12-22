@@ -1,0 +1,31 @@
+---
+- name: Test fetch
+  hosts: Test
+  remote_user: sguser
+  become: yes
+  become_method: sudo
+  vars:
+     RUN_USER: sguser
+  tasks:
+    - name: "Gethering System Information"
+      shell: "ps -ef > /home/{{RUN_USER}}/result"
+      register: get_result
+
+    - name: "Debug Gethering System Information"
+      debug:
+        var: get_result
+
+    - name: "Copy files from Remote Server"
+      fetch:
+        src: "/home/{{RUN_USER}}/result"
+        dest: /get
+
+    - name: "Delete Gethering File"
+      file:
+        path: "/home/{{RUN_USER}}/result"
+        state: absent
+      register: delete_result
+
+    - name: "Debug Delete Gethering File"
+      debug:
+        var: delete_result 

@@ -1,0 +1,33 @@
+---
+- name: SmartGuard Patch Start
+  hosts: Patch
+  remote_user: sguser
+  become: yes
+  become_method: sudo
+  vars_files: 
+   - ./dbpass.yml  
+  vars:
+     VER: V3.1.2.0
+     UPDATE: 20231214
+     RUN_USER: sguser
+     WORKING_DIR: /home/sguser
+  tasks:
+    - name: "Patch directory exists"
+      stat:
+        path: "{{WORKING_DIR}}/SmartGuardPatch-Common/script"
+      register: dir_result
+
+    - name: "Debug DB Patch directory"
+      debug:
+        msg: "{{dir_result}}"
+
+    - name: "Patch Run"
+      shell: |
+         cd SmartGuardPatch-Common
+         sh ./script/mariaDB_patch.sh
+      when: dir_result.stat.exists
+      register: db_patch_result
+
+    - name: "Debug DB Patch Run"
+      debug:
+        msg: "{{db_patch_result}}"

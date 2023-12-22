@@ -1,0 +1,241 @@
+ubuntu 20.04 설치
+
+* /etc/apt/source.list 설정
+deb http://192.168.1.10:8081/repository/apt-proxy-focal/ focal main restricted universe multiverse
+deb http://192.168.1.10:8081/repository/apt-proxy-focal/ focal-updates main restricted universe multiverse
+deb http://192.168.1.10:8081/repository/apt-proxy-focal/ focal-backports main restricted universe multiverse
+deb http://192.168.1.10:8081/repository/apt-proxy-focal/ focal-security main restricted universe multiverse
+
+# apt update
+
+* ansible 설치
+# apt install ansible
+
+* ansible 정상동작 확인
+#ansible -m ping localhost
+localhost | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+
+* /etc/ansible/ansible.cfg 설정
+
+[defaults]
+inventory      = /etc/ansible/hosts
+ask_pass      = True           # ssh 접속시 패스워드 접속(sshpass 패키지 설치 필요)
+
+* /etc/ansible/hosts 설정 - > 대상 호스트 설정
+
+[Install]
+192.168.80.181
+
+[Patch]
+192.168.80.128
+
+* 인벤토리 ansible 연결 확인
+#ansible all -m ping
+
+[에러]
+
+root@user-HVM-domU:/etc/ansible# ansible all -m ping
+SSH password:
+192.168.80.128 | FAILED! => {
+    "msg": "to use the 'ssh' connection type with passwords, you must install the sshpass program"
+}
+192.168.80.181 | FAILED! => {
+    "msg": "to use the 'ssh' connection type with passwords, you must install the sshpass program"
+
+=> 
+=> sshpass 설치
+# apt install sshpass
+
+root@user-HVM-domU:/etc/ansible# ansible all -m ping
+SSH password:
+192.168.80.181 | FAILED! => {
+    "msg": "Using a SSH password instead of a key is not possible because Host Key checking is enabled and sshpass does not support this.  Please add this host's fingerprint to your known_hosts file to manage this host."
+
+=>
+=> * /etc/ansible/ansible.cfg 설정
+[defaults]
+host_key_checking = False
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+[성공]
+
+root@user-HVM-domU:/etc/ansible# ansible all -m ping
+SSH password:
+192.168.80.128 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.80.181 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+
+* SSH 키를 이용한 접속 설정
+
+* /etc/ansible/ansible.cfg 설정
+[defaults]
+ask_pass      = False           # ssh 접속시 패스워드 접속하지 않음
+remote_user = sguser         # 제어노드에서 sguser라는 계정으로 관리 호스트에서 접속
+
+[privilege_escalation]
+become=True
+become_method=sudo
+become_user=root
+become_ask_pass=False
+
+
+* 대상 호스트에 sguser 생성
+#useradd sguser
+
+* sguser 패스워드 설정
+#passwd sguser
+
+* 대상 호스트 sguser 계정 sudo 권한 부여
+#vi /etc/sudoers
+sguser  ALL=(ALL)       NOPASSWD: ALL
+
+ansible all -m ping
+
+* 제어노드 ssh-key 생성
+#ssh-keygen
+
+#ssh-copy-id sguser@192.168.80.181
+#ssh-copy-id sguser@192.168.80.128
+
+
+* 패스워드 없이 접속 확인
+ssh sguser@192.168.80.181
+ssh sguser@192.168.80.128
+
+* ansible 정상 동작 확인
+#ansible all -m ping
+192.168.80.181 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.80.128 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+
+* 변수 암호화
+2.4 이하 버전에서는
+ansible-playbook --ask-vault-pass 파일명 사용 -> 단일 패스워드 사용
+2.5 이상 버전부터는 --vault-id 사용 -> 멀티 패스워드
+
+* 파일 암호화
+ansible-playbook --vault-password-file=패스워드파일 파일명
+-> 암호가 들어있는 패스워드파일은 일반 텍스트 파일이므로 파일권한과 여러 다른수단으로 보호해야 한다. ???
+-> ansible-vault_password_file 환경변수를 사용하여 암호 파일의 기본위치를 지정할 수 있다.
+
+/etc/ansible/ansible.cfg에 지정 가능
+vault_password_file = /etc/ansible/vaultpass
+
+* string 암호화
+ansible-vault encrypt_string --stdin-name '변수명'
+Reading plaintext input from stdin. (ctrl-d to end input)
+
+Reading plaintext input from stdin. (ctrl-d to end input)
+winpass: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          34666464303134656165343866386662616434616662363136663538326163633535313461653732
+          6365353566353362323963616336306532383739363030340a376465633766313231343564303935
+          37313132303533313161363438613663383063363537346665313431366631383365353435373534
+          3361373333383030380a323661636434313761326663383530656663383262353732336535633365
+          3238
+
+내용을 파일로 저장
+
+* DB 패스워드 암호화
+-> 변수 암호화 & 파일 암호화로 적용
+
+ansible-playbook --vault-id dbpass@prompt 파일명
+sgdbadm$2015 입력
+stdout 입력 및 ctrl-d
+
+hello!vault |
+          $ANSIBLE_VAULT;1.2;AES256;dbpass
+          38356331316136666631616432386534306364633830626434666637383930333630616136383464
+          3431383664353638333661386537623332326235343036300a343133616439363337396664666366
+          37313538643736373839663630363836326431323130356538653838386466633661373066393238
+          3731303634383763620a306563303066626661376162303937623661623162613232653835353435
+          3464
+
+
+-> AES로 암호화 됨
+# vi dbpass.yml
+-> 입력 및 저장
+-> 파일 암호화
+# ansible-vault encrypt dbpass.yml
+파일암호화 패스워드 입력
+
+#cat dbpass.yml
+$ANSIBLE_VAULT;1.1;AES256
+36366331366339636538633438646333313761613038353665303836303566313639643261353137
+3833353134306437303162383933646231373534343037630a626137303134396339346263366262
+31613866316432373962633561373861306262666161303737653532306531366335383861616332
+6636386139656665640a646339323839643635363838356232616438303031326530396563363436
+36316435376330343836646331613266336564656466333338383962333766336633663135613937
+64353037393364666432636464393737323064323037613462353661323531646164363961306537
+66333232323361363161363432366361633861396139356235623037336339383461343866333134
+38633938323632356463383838353735376436663832623464386332393138626636613463383232
+62663432373734646339643038346236663535356533316562346234363933313163303965313832
+32346136626564646662363036396164393232663837303463646438393933366164306561633963
+35643830613831633337326666666331616134633932626463393966643664623961353563353363
+34643862336638663964376663333966633062633433313263383338343566613039663134373635
+38633430333361396533373864326536326435633261313161353332376337316233633636653531
+66356361326466346233646162633734616231633135386132323664666532393830326233643763
+33663639343736356130323566666530343662656438663465636461633137626562353966386633
+62313434386262313033313631393635333963323661333134366361656461613432346131633431
+63386163333439373434316339663831313266393261326537366466356165626466336633343230
+38393664316466373064323938636132366564643530303331643063653135653535646431313861
+35313837623431376135636231663433306562643163653739323064326338633261633036613766
+36373031653562656261323733363962386234626237636630616364316539393962626530633366
+36303561666634353364623866653134396161613235336533373938616630636333376637353334
+36613735636535626433366564643963613636623361336162306132356462356464633630383966
+65396231643765323136373236336464646430386666653566396339313966656363633331333735
+62386164393464306137343231393461393966323762663539343738393964393931386334643338
+65353331623964303662323138363231373331663830643134393632636266373031353535363462
+6430323562343838323665313665323536316430336633393537
+
+AES로 암호화된 것을 볼 수 있다.
+
+# ansible-vault view dbpass.yml
+파일 암호화 패스워드 입력
+
+  vars:
+    dbpass: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          32363662303439616334616439623038313936616638616137376532363031383730363830623830
+          3865376532343338316264613134616265326566316666620a373233323736356339323861653438
+          64626136356135333635313636376664353733633730663362353434383630383537633338616434
+          6239613930613632300a373036333266306632306263313031343065363231346661616666636532
+          3830
+
+
+# ansible-playbook License.yml
+변수화 파일인 dbpass이 암호화된 채로 
+playbook을 실행하면 암호화되지 않은상태랑 동일하게 실행된다.
+
+* DB 쿼리시 한글깨짐 현상
+- 확인 : 스크립트 실행시 java 모듈로 쿼리 실행
+- 조치 : 옵션 -Dfile.encoding="UTF8" 추가
+

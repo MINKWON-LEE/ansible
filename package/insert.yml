@@ -1,0 +1,35 @@
+---
+- name: "Check MariaDB Insert Query"
+  hosts: Install
+  remote_user: sguser
+  vars_files: 
+   - ./dbpass.yml
+  vars:
+     ansible_become: yes
+     ansible_become_method: sudo  
+     DBPATH: /usr/local/src/mariadb
+     DBID: sgdbadm 
+     Database: snet
+     Query: INSERT INTO SNET_CONFIG_USER_AUTH (USER_ID,USER_NM,USER_PW,USER_AUTH,TEAM_ID,TEAM_NM,USER_MS,USER_MAIL,SVC_CD,CREATE_USER_ID,PW_FAIL_CNT,USER_STATUS)
+            VALUES (
+              'sgmanager',
+              'SmartGuard',
+              'a93bba2d86c8b5442ae07400b462f5a99f4db1c5d1b4d7cf8d84a9d940de4a407fcc9ff01a56aacaf3afa7e633788814d9b8575e5cb6c2fc8dcb1ea8fe69a371',
+              'SU',
+              '200200',
+              '지원팀',
+              '000-0000-0000',
+              'help@igloosec.com',
+              NULL,
+              NULL,
+              0,
+              0);
+  tasks:
+    - name: "Check Character Set"
+      shell: |
+         {{DBPATH}}/bin/mysql -u{{DBID}} -p'{{dbpass}}' {{Database}} -e "{{Query}}"
+      register: Insert_Query_Check_result
+
+    - name: "Debug Check Insert Query"
+      debug:
+        var: Insert_Query_Check_result

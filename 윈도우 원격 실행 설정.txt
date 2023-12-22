@@ -1,0 +1,124 @@
+pip install pywinrm
+
+winRM 기본 포트
+(http 5985, https 5986)
+
+inventory 파일 설정
+
+[WinSrv]
+192.168.80.131
+
+[WinSrv:vars]
+ansible_user=Administator
+ansible_password=super123!@#
+ansible_connection=winrm
+ansible_winrm_server_cert_validation=ignore
+
+
+
+windows 서버에서 파워쉘을 관리자 권한으로 명령어 확인
+
+Windows PowerShell
+Copyright (C) 2016 Microsoft Corporation. All rights reserved.
+
+PS C:\Users\Administrator> Get-Service -Name winrm
+
+Status   Name               DisplayName
+------   ----               -----------
+Running  winrm              Windows Remote Management (WS-Manag...
+
+
+-> Running 확인
+
+Windows Host 조건
+- Powershell 3.0 이상 -> $PSVersionTable
+- .NET 4.0 이상 
+- WinRM Listner가 생성, 활성화 상태
+Win7, 2008 에서는 .Net Framework Upgrade 필요
+
+- WinRM Memory Hotfix
+  - PowerShell 3.0 버전에서 WinRM을 사용하면 사용가능 메모리 제한이 있다.
+  - 이 hotfix를 설치하지 않으면 특정 명령어 실행시 실패할 수 있다.
+
+상태에 대해 구체적인 확인
+winrm enumerate winrm/config/Listener
+
+
+PS C:\Users\Administrator> winrm enumerate winrm/config/Listener
+Listener
+    Address = *
+    Transport = HTTP
+    Port = 5985
+    Hostname
+    Enabled = true
+    URLPrefix = wsman
+    CertificateThumbprint
+    ListeningOn = 127.0.0.1, 192.168.80.131, ::1, 2001:0:2851:782c:4e8:3e94:3f57:af7c, fe80::5efe:192.168.80.131%6, fe80::4e8:3e94:3f57:af7c%7, fe80::9036:1645:f671:1ac5%9
+
+
+만약 ssl: the specified credentials were rejected by the server 라는 메시지가 나오면
+파워쉘에서 Set-Item -Path WSMan:\localhost\Service\Auth\Basic -Value $true
+그리고 윈도우의 사용자는 Administrator 권한을 가진 계정이어야 한다.
+
+ansible ping 확인
+ansible -i <호스트파일> <호스트명> -m win_ping
+#ansible -i /etc/ansible/windows WinSrv -m win_ping
+
+192.168.80.131 | UNREACHABLE! => {
+    "changed": false,
+    "msg": "ssl: HTTPSConnectionPool(host='192.168.80.131', port=5986): Max retries exceeded with url: /wsman (Caused by NewConnectionError('<urllib3.connection.VerifiedHTTPSConnection object at 0x7f1c48fe7a60>: Failed to establish a new connection: [Errno 111] Connection refused'))",
+    "unreachable": true
+}
+
+위 메시지가 나오면 아래 명령어 실행
+Set-Item -Path WSMan:\localhost\Service\Auth\Basic -Value $true
+
+* 설정 상태 확인
+winrm get winrm/config
+
+winrm 활성화 여부 확인
+winrm enumerate winrm/config/Listener
+
+Thumbprint 확인
+New-SelfSignedCertificate -CertstoreLocation Cert:\LocalMachine\My -DnsName $env:COMPUTERNAME
+
+PS C:\Users\Administrator> New-SelfSignedCertificate -CertstoreLocation Cert:\LocalMachine\My -DnsName $env:COMPUTERNAME
+
+
+   PSParentPath: Microsoft.PowerShell.Security\Certificate::LocalMachine\My
+
+Thumbprint                                Subject
+----------                                -------
+B7AF6CE3B753371348EC6D6C8280A2A6FD20336D  CN=WIN-2016-TEST13
+
+
+winrm HTTPS 설정
+winrm create winrm/config/Listener?Address=*+Transport=HTTPS '@{Hostname="WIN-2016-TEST13";CertificateThumbprint="B7AF6CE3B753371348EC6D6C8280A2A6FD20336D"}'
+
+PS C:\Users\Administrator>  winrm create winrm/config/Listener?Address=*+Transport=HTTPS '@{Hostname="WIN-2016-TEST13";CertificateThumbprint="B7AF6CE3B753371348EC6D6C8280A2A6FD20336D"}'
+ResourceCreated
+    Address = http://schemas.xmlsoap.org/ws/2004/08/addressing/role/anonymous
+    ReferenceParameters
+        ResourceURI = http://schemas.microsoft.com/wbem/wsman/1/config/listener
+        SelectorSet
+            Selector: Address = *, Transport = HTTPS
+
+PS C:\Users\Administrator>
+
+
+이후 다시 ansible ping
+ansible -i <호스트파일> <호스트명> -m win_ping
+#ansible -i /etc/ansible/windows WinSrv -m win_ping
+
+192.168.80.131 | UNREACHABLE! => {
+    "changed": false,
+    "msg": "ssl: the specified credentials were rejected by the server",
+    "unreachable": true
+}
+
+만약 ssl: the specified credentials were rejected by the server 라는 메시지가 나오면
+파워쉘에서 Set-Item -Path WSMan:\localhost\Service\Auth\Basic -Value $true
+그리고 윈도우의 사용자는 Administrator 권한을 가진 계정이어야 한다.
+
+반드시 계정 생성!!!!
+

@@ -1,0 +1,13 @@
+[winsrv]
+#WIN-2016-TEST4
+#WIN-2016-TEST13
+#WIN-2016-TEST2
+WIN-A2B5H7D3FTL
+
+[winsrv:vars]
+ansible_user=sguser
+ansible_connection=winrm
+ansible_port=5986
+#ansible_winrm_transport=basic
+ansible_winrm_scheme=https
+ansible_winrm_server_cert_validation=ignore
