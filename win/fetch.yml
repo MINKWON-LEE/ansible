@@ -1,0 +1,31 @@
+---
+- name: Test fetch
+  hosts: winsrv
+  remote_user: sguser
+  vars_files:
+   - ./winpass.yml
+  vars:
+     WIN_User: sguser
+  tasks:
+    - name: "Gethering System Information"
+      win_command: "powershell.exe wmic process get caption,CommandLine,ProcessID,executablepath /format:csv > result"
+      args: 
+        executable: cmd
+      register: get_result
+
+    - name: "Debug Gethering System Information"
+      debug:
+        var: get_result
+
+    - name: "Copy files from Remote Server"
+      fetch:
+        src: result
+        dest: /get
+
+    - name: "Delete Gethering File"
+      win_shell: "del result" 
+      register: delete_result
+
+    - name: "Debug Delete Gethering File"
+      debug:
+        var: delete_result 

@@ -1,0 +1,71 @@
+---
+- name: SmartGuard Install Start
+  hosts: Install
+  remote_user: sguser
+  become: yes
+  become_method: sudo
+  vars_files: 
+   - ./dbpass.yml
+  vars:
+     VER: V3.1.2.0
+     UPDATE: 20231214
+     RUN_USER: sguser
+     WORKING_DIR: /home/sguser
+     DBPATH: /usr/local/src/mariadb
+     DBID: sgdbadm 
+     Database: snet
+     Query: INSERT INTO snet_config_license (LICENSE_KEY, LICENSE_FILE_KEY, EXPIRED_DATE, UPDATE_USER_ID, UPDATE_DATE) VALUES ('YfMzjzzVK1FU5UNMAvvdk89Q3BxaCeASHn0CDsLGP6w=', NULL, '99991231', NULL, NOW());
+  tasks:
+    - name: "SmartGuard Setup File check"
+      stat:
+       path: "{{WORKING_DIR}}/AgentManager_Setup-{{VER}}.{{UPDATE}}.Common-dev.tar"
+      register: setup_file
+
+    - name: "Debug SmartGuard Setup File check"
+      debug:
+        var: setup_file
+
+    - name: "Delete setup file"
+      file:
+        path: "{{WORKING_DIR}}/AgentManager_Setup-{{VER}}.{{UPDATE}}.Common-dev.tar" 
+        state: absent
+      when: setup_file.stat.exists
+      register: setup_file_delete
+      
+    - name: "Debug Delete Setup File"
+      debug:
+        var: setup_file_delete
+
+    - name: "SmartGuard Setup File Download"
+      get_url:
+        url: http://192.168.1.10:8081/repository/releases/com/igloosec/smartguard_v3/AgentManager_Setup/{{VER}}.{{UPDATE}}.Common-dev/AgentManager_Setup-{{VER}}.{{UPDATE}}.Common-dev.tar
+        dest: "{{WORKING_DIR}}/AgentManager_Setup-{{VER}}.{{UPDATE}}.Common-dev.tar"
+        mode: 0644
+      register: setup_file_download_result
+
+    - name: "Debug Setup file Download"
+      debug:
+        var: setup_file_download_result
+
+    - name: "Setup directory exists"
+      stat:
+        path: "{{WORKING_DIR}}/AgentManager_Setup"
+      register: dir_result
+
+    - name: "Delete Setup directory"
+      file:
+        path: "{{WORKING_DIR}}/AgentManager_Setup" 
+        state: absent
+      when: dir_result.stat.exists
+      register: setup_directory_delete
+
+    - name: "Debug Delete Setup directory"
+      debug:
+        var: setup_directory_delete
+          
+    - name: "Unarchive Setup File tar"
+      unarchive: 
+        src: "{{WORKING_DIR}}/AgentManager_Setup-{{VER}}.{{UPDATE}}.Common-dev.tar"
+        dest: "{{WORKING_DIR}}"
+        remote_src: yes
+      register: Extract_setup_file

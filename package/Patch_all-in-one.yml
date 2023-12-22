@@ -47,9 +47,7 @@
         var: dir_result
 
     - name: "Delete patch directory"
-      file:
-        path: "{{WORKING_DIR}}/SmartGuardPatch-Common" 
-        state: absent
+      command: rm -rf {{WORKING_DIR}}/SmartGuardPatch-Common
       when: dir_result.stat.exists
       register: delete_dir
 

@@ -1,0 +1,28 @@
+---
+- name: SmartGuard Patch Start
+  hosts: Patch
+  remote_user: sguser
+  become: yes
+  become_method: sudo
+  vars_files: 
+   - ./dbpass.yml  
+  vars:
+     VER: V3.1.2.0
+     UPDATE: 20231214
+     RUN_USER: sguser
+     WORKING_DIR: /home/sguser
+     DBPATH: /usr/local/src/mariadb
+     DBID: sgdbadm 
+     Database: snet
+     DB_DIR: SmartGuardPatch-Common/file/mariaDB/20231206
+     Query_file: UPDATE.sql
+  tasks:
+    - name: "Test Hangul Query"
+      shell: |
+         cd SmartGuardPatch-Common
+         {{DBPATH}}/bin/mysql -u{{DBID}} -p'{{dbpass}}' {{Database}} < {{WORKING_DIR}}/{{DB_DIR}}/{{Query_file}}
+      register: Hangul_Query_result
+
+    - name: "Debug Test Hangul Query"
+      debug:
+        var: Hangul_Query_result

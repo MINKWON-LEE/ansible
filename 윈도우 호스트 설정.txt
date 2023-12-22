@@ -1,0 +1,33 @@
+* 계정 추가
+net user sguser super123!@# /add
+net localgroup administrators sguser /add
+net localgroup users sguser /delete
+
+* HTTP 삭제
+winrm delete winrm/config/listener?Address=*+Transport=HTTP
+winrm set winrm/config/service/auth '@{Basic="true"}'
+
+* TrustedHosts 추가
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value 192.168.80.185
+
+* CertificateThumbprint 확인
+New-SelfSignedCertificate -CertstoreLocation Cert:\LocalMachine\My -DnsName $env:COMPUTERNAME
+
+* HTTPS에 CertificateThumbprint 설정
+winrm create winrm/config/Listener?Address=*+Transport=HTTPS '@{Hostname="WIN-2016-TEST4";CertificateThumbprint="ECA51D193B5D585C3739873620A3AC366F111A88"}'
+
+* 방화벽 정책 추가
+netsh advfirewall firewall add rule profile=any name="Allow WinRM HTTPS" dir=in localport=5986 protocol=TCP action=allow
+
+* Basic 추가
+winrm set winrm/config/service/auth '@{Basic="true"}'
+
+* 확인
+dir wsman:\localhost\listener
+winrm enumerate winrm/config/Listener
+winrm get winrm/config
+
+- 계정 추가 생성시 "다음 로그온시 사용자가 반드시 암호를 변경해야함" 체크되어 있으면
+  추가 생성한 계정으로 반드시 로그인 작업 필요
+- 로그인 작업 안하면 ssl: the specified credentials were rejected by the server 메시지 발생할 수 있음
+- 암호 만료시에도 동일
